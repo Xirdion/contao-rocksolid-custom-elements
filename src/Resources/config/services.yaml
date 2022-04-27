@@ -1,0 +1,15 @@
+services:
+    _defaults:
+        autowire: true
+
+    madeyourday.rocksolid_custom_elements.dca_helper:
+        class: MadeYourDay\RockSolidCustomElements\DataContainer\DcaHelper
+        arguments:
+            - '@request_stack'
+
+    madeyourday.rocksolid_custom_elements.config:
+        class: MadeYourDay\RockSolidCustomElements\CustomElement\Config
+        arguments:
+            - '@request_stack'
+            - '@service_container'
+            - '@monolog.logger.contao'
