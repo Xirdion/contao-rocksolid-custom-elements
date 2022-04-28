@@ -2,14 +2,14 @@
 
 namespace MadeYourDay\RockSolidCustomElements\EventListener\DataContainer;
 
-use Contao\DataContainer;
-use MadeYourDay\RockSolidCustomElements\DataContainer\DcaHelper;
+use Contao\DataContainer as ContaoDca;
+use MadeYourDay\RockSolidCustomElements\CustomElement\DataContainer;
 
 class SubmitDataContainerCallback
 {
-    private DcaHelper $dcaHelper;
+    private DataContainer $dcaHelper;
 
-    public function __construct(DcaHelper $dcaHelper)
+    public function __construct(DataContainer $dcaHelper)
     {
         $this->dcaHelper = $dcaHelper;
     }
@@ -20,11 +20,11 @@ class SubmitDataContainerCallback
      * Creates empty arrays for empty lists if no data is available
      * (e.g. for new elements)
      *
-     * @param DataContainer $dc
+     * @param ContaoDca $dc
      *
      * @return void
      */
-    public function __invoke(DataContainer $dc): void
+    public function __invoke(ContaoDca $dc): void
     {
         $type = $this->dcaHelper->getDcaFieldValue($dc, 'type');
         if (!$type || substr($type, 0, 5) !== 'rsce_') {

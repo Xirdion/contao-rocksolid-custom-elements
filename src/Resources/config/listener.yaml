@@ -6,10 +6,10 @@ services:
         class: MadeYourDay\RockSolidCustomElements\EventListener\DataContainer\LoadDataContainerCallback
         arguments:
             - '@request_stack'
-            - '@madeyourday.rocksolid_custom_elements.dca_helper'
+            - '@madeyourday.rocksolid_custom_elements.dca'
 
     MadeYourDay\RockSolidCustomElements\EventListener\DataContainer\SubmitDataContainerCallback:
         class: MadeYourDay\RockSolidCustomElements\EventListener\DataContainer\SubmitDataContainerCallback
         arguments:
-            - '@madeyourday.rocksolid_custom_elements.dca_helper'
+            - '@madeyourday.rocksolid_custom_elements.dca'
             - '@madeyourday.rocksolid_custom_elements.config'

@@ -2,26 +2,20 @@
 
 namespace MadeYourDay\RockSolidCustomElements\EventListener\DataContainer;
 
-use Contao\DataContainer;
+use Contao\DataContainer as ContaoDca;
 use MadeYourDay\RockSolidCustomElements\CustomElement\Config;
-use MadeYourDay\RockSolidCustomElements\DataContainer\DcaHelper;
-use Symfony\Component\HttpFoundation\Request;
+use MadeYourDay\RockSolidCustomElements\CustomElement\DataContainer;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 class LoadDataContainerCallback
 {
-    private Request $request;
-    private DcaHelper $dcaHelper;
+    private RequestStack $requestStack;
+    private DataContainer $dcaHelper;
     private Config $config;
 
-    public function __construct(RequestStack $requestStack, DcaHelper $dcaHelper, Config $config)
+    public function __construct(RequestStack $requestStack, DataContainer $dcaHelper, Config $config)
     {
-        $request = $requestStack->getCurrentRequest();
-        if (null === $request) {
-            throw new \Exception('Missing Request object in ' . __CLASS__);
-        }
-
-        $this->request = $request;
+        $this->requestStack = $requestStack;
         $this->dcaHelper = $dcaHelper;
         $this->config = $config;
     }
@@ -31,17 +25,22 @@ class LoadDataContainerCallback
      *
      * Reloads config and creates the DCA fields
      *
-     * @param DataContainer|null $dc
+     * @param ContaoDca|null $dc
      *
      * @return void
      */
-    public function __invoke(?DataContainer $dc): void
+    public function __invoke(?ContaoDca $dc): void
     {
         if (null === $dc) {
             return;
         }
 
-        $act = $this->request->query->get('act');
+        $request = $this->requestStack->getCurrentRequest();
+        if (null === $request) {
+            return;
+        }
+
+        $act = $request->query->get('act');
         if ('create' === $act) {
             return;
         }
@@ -56,7 +55,9 @@ class LoadDataContainerCallback
         }
 
         if ('editAll' === $act) {
-            return $this->createDcaMultiEdit($dc);
+            $this->dcaHelper->createDcaMultiEdit($dc);
+
+            return;
         }
 
         $type = $this->dcaHelper->getDcaFieldValue($dc, 'type');
@@ -74,27 +75,32 @@ class LoadDataContainerCallback
         }
 
         // Check if a dca form was submitted
-        $createFromPost = $this->request->request->get('FORM_SUBMIT') === $dc->table;
+        $createFromPost = $request->request->get('FORM_SUBMIT') === $dc->table;
         $treeField = $this->getTreeField($dc);
 
-        $this->createDca($dc, $type, $createFromPost, $treeField);
+        $this->dcaHelper->createDca($dc, $type, $createFromPost, $treeField);
     }
 
     /**
      * Ensures that the fileTree oder pageTree field exists.
      *
-     * @param DataContainer $dc
+     * @param ContaoDca $dc
      *
      * @return string|null
      */
-    private function getTreeField(DataContainer $dc): ?string
+    private function getTreeField(ContaoDca $dc): ?string
     {
-        $field = $this->request->query->get('field');
+        $request = $this->requestStack->getCurrentRequest();
+        if (null === $request) {
+            return null;
+        }
+
+        $field = $request->query->get('field');
         if ($field && str_starts_with($field, 'rsce_field_')) {
             return $field;
         }
 
-        $target = $this->request->query->get('target');
+        $target = $request->query->get('target');
         if ($target) {
             $targetData = explode('.', $target, 3);
             if (\is_array($targetData) && \count($targetData) >= 2 && $targetData[0] === $dc->table && str_starts_with($targetData[1], 'rsce_field_')) {
@@ -102,7 +108,7 @@ class LoadDataContainerCallback
             }
         }
 
-        $name = $this->request->request->get('name');
+        $name = $request->request->get('name');
 
         if ($name && str_starts_with($name, 'rsce_field_')) {
             return $name;

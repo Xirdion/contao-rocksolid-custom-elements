@@ -13,12 +13,11 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 class Config
 {
-    private Request $request;
+    private RequestStack $requestStack;
     private string $projectDir;
     private string $cacheDir;
     private LoggerInterface $logger;
@@ -26,12 +25,7 @@ class Config
 
     public function __construct(RequestStack $requestStack, ContainerInterface $container, LoggerInterface $logger)
     {
-        $request = $requestStack->getCurrentRequest();
-        if (null === $request) {
-            throw new \Exception('Missing request object');
-        }
-
-        $this->request = $request;
+        $this->requestStack = $requestStack;
         $this->projectDir = $container->getParameter('kernel.project_dir');
         $this->cacheDir = $container->getParameter('kernel.cache_dir') . '/contao';
         $this->logger = $logger;
@@ -104,6 +98,76 @@ class Config
     public function reloadConfig(): void
     {
         $this->loadConfig(true);
+    }
+
+    public function getConfigByType(string $type): ?array
+    {
+        $configPath = null;
+
+        try {
+            $templatePaths = CustomTemplate::getTemplates($type);
+            if (!empty($templatePaths[0])) {
+                $configPath = substr($templatePaths[0], 0, -6) . '_config.php';
+            }
+        } catch (\Exception $e) {
+            $configPath = null;
+        }
+
+        if (null === $configPath || !file_exists($configPath)) {
+            $allConfigs = array_merge(
+                glob($this->projectDir . '/templates/' . $type . '_config.php') ?: [],
+                glob($this->projectDir . '/templates/*/' . $type . '_config.php') ?: []
+            );
+
+            if (count($allConfigs)) {
+                $configPath = $allConfigs[0];
+            } else {
+                return null;
+            }
+        }
+
+        $config = include $configPath;
+
+        if ($config) {
+            $config['fields'] = is_array($config['fields'] ?? null) ? $config['fields'] : array();
+        }
+
+        return $config;
+    }
+
+    /**
+     * Get the config from field name
+     *
+     * @param  string $field Field name
+     * @return mixed         Configuration of the field
+     */
+    public function getNestedConfig(string $field, $config)
+    {
+        $field = preg_split('(__([0-9]+)__)', substr($field, 11), -1, PREG_SPLIT_DELIM_CAPTURE);
+
+        if (!isset($config[$field[0]])) {
+            return null;
+        }
+
+        $fieldConfig =& $config[$field[0]];
+
+        for ($i = 0; isset($field[$i]); $i += 2) {
+
+            if (isset($field[$i + 1])) {
+                if (!isset($fieldConfig['fields'])) {
+                    return null;
+                }
+                if (!isset($fieldConfig['fields'][$field[$i + 2]])) {
+                    return null;
+                }
+                $fieldConfig =& $fieldConfig['fields'][$field[$i + 2]];
+            }
+            else {
+                return $fieldConfig;
+            }
+        }
+
+        return null;
     }
 
     private function getAllConfigs(): array
@@ -217,7 +281,8 @@ class Config
             try {
                 $config = include $configPath;
             } catch (\Throwable $exception) {
-                if ('contao_install' === $this->request->attributes->get('_route')) {
+                $request = $this->requestStack->getCurrentRequest();
+                if (null !== $request && 'contao_install' === $request->attributes->get('_route')) {
                     $this->saveToCache = false;
                     continue;
                 }

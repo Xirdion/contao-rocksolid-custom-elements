@@ -2,8 +2,8 @@ services:
     _defaults:
         autowire: true
 
-    madeyourday.rocksolid_custom_elements.dca_helper:
-        class: MadeYourDay\RockSolidCustomElements\DataContainer\DcaHelper
+    madeyourday.rocksolid_custom_elements.dca:
+        class: MadeYourDay\RockSolidCustomElements\CustomElement\DataContainer
         arguments:
             - '@request_stack'
 
